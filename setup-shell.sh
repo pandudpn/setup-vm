@@ -32,7 +32,7 @@ set -o pipefail
 # Set this to your GitHub raw public key URL
 # Example: https://raw.githubusercontent.com/username/dotfiles/main/id_ed25519.pub
 # Or use GitHub's keys endpoint: https://github.com/username.keys
-SSH_PUBLIC_KEY_URL="https://github.com/YOUR_GITHUB_USERNAME.keys"
+SSH_PUBLIC_KEY_URL="https://raw.githubusercontent.com/pandudpn/setup-vm/main/dotfiles/id_ed25519.pub"
 
 # Set to "true" to enable SSH key setup, "false" to skip
 SETUP_SSH_KEY="true"
