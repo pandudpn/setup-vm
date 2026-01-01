@@ -198,6 +198,29 @@ Kemudian switch ke user:
 su - <username>
 ```
 
+### Warning: plugin 'zsh-autosuggestions' not found
+
+Jika Anda sudah punya user lama dan update manual `.zshrc`, pastikan plugins tersebut **tidak** ada di array `plugins=()` karena mereka di-source secara manual di bagian bawah file.
+
+Edit `.zshrc` dan pastikan:
+```bash
+plugins=(
+    git
+    docker
+    sudo
+    history
+    colored-man-pages
+    command-not-found
+    # JANGAN tambahkan zsh-autosuggestions dan zsh-syntax-highlighting di sini
+)
+```
+
+Plugins tersebut sudah di-source di bagian bawah file dengan:
+```bash
+source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+```
+
 ### Docker permission denied
 
 Logout dan login kembali agar perubahan docker group berlaku, atau jalankan:

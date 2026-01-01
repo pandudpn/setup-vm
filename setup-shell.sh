@@ -283,13 +283,28 @@ update_package_lists() {
 ################################################################################
 
 # Install basic development tools
-# Installs: git, curl, wget, build-essential, unzip
+# Installs: git, curl, wget, build-essential, unzip, vim, neovim, nano, tree, jq, software-properties-common
 # Returns:
 #   0 on success (even if some packages fail), 1 only on critical failure
 install_basic_tools() {
     print_message "Installing basic development tools..."
     
-    local packages=("git" "curl" "wget" "build-essential" "unzip")
+    local packages=(
+        "git"
+        "curl"
+        "wget"
+        "build-essential"
+        "unzip"
+        "vim"
+        "neovim"
+        "nano"
+        "tree"
+        "jq"
+        "software-properties-common"
+        "ca-certificates"
+        "gnupg"
+        "lsb-release"
+    )
     local failed_packages=()
     local success_count=0
     
@@ -913,8 +928,6 @@ plugins=(
     history
     colored-man-pages
     command-not-found
-    zsh-autosuggestions
-    zsh-syntax-highlighting
 )
 
 # Load Oh My Zsh
@@ -930,12 +943,15 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias vi='vim'
 alias vim='vim'
+alias nvim='nvim'
+alias v='nvim'
 alias fm='ranger'
 alias c='clear'
 alias h='history'
 alias grep='grep --color=auto'
 alias egrep='egrep --color=auto'
 alias fgrep='fgrep --color=auto'
+alias tree='tree -C'
 
 # Docker aliases
 alias dps='docker ps'
@@ -1024,8 +1040,14 @@ prompt_context() {
 }
 
 # Environment variables
-export EDITOR='vim'
-export VISUAL='vim'
+# Use neovim if available, otherwise vim
+if command -v nvim &> /dev/null; then
+    export EDITOR='nvim'
+    export VISUAL='nvim'
+else
+    export EDITOR='vim'
+    export VISUAL='vim'
+fi
 export PAGER='less'
 
 # Colored man pages
