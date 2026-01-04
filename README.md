@@ -9,6 +9,8 @@ Script otomatis untuk setup development environment lengkap dengan tmux, zsh, ra
 - ✅ Install tmux dengan konfigurasi optimal
 - ✅ Install ranger file manager dengan preview dependencies
 - ✅ Install Docker dan Docker Compose dengan non-root access
+- ✅ Install Go programming language dengan workspace directories
+- ✅ Install Sops untuk secrets management
 - ✅ Install CLI tools: fzf, ripgrep, ncdu, htop, neofetch, bat
 - ✅ Konfigurasi otomatis dengan aliases dan plugins
 - ✅ Error handling yang robust (satu kegagalan tidak menghentikan instalasi)
@@ -317,6 +319,11 @@ Script sudah include banyak aliases berguna:
 - `di` - Docker images
 - `dex` - Docker exec -it
 - `dlog` - Docker logs -f
+
+**Sops:**
+- `sops-edit` - Edit encrypted file
+- `sops-view` - Decrypt and view file
+- `sops-encrypt` - Encrypt file
 
 **Git:**
 - `gs`, `ga`, `gc` - Git status/add/commit

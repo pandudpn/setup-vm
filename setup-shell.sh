@@ -617,6 +617,188 @@ install_additional_tools() {
 }
 
 ################################################################################
+# Go Installation Functions
+################################################################################
+
+# Install Go programming language
+# Returns:
+#   0 on success, 1 on failure (non-critical)
+install_golang() {
+    print_message "Installing Go programming language..."
+
+    # Check if Go is already installed
+    if command -v go &>/dev/null; then
+        print_message "Go is already installed, checking version..."
+        go version
+        return 0
+    fi
+
+    local go_version="1.25.5"
+    local go_os="linux"
+    local go_arch=$(uname -m)
+    local go_arch_formatted
+
+    # Convert architecture to Go format
+    case "$go_arch" in
+        "x86_64") go_arch_formatted="amd64" ;;
+        "aarch64"|"arm64") go_arch_formatted="arm64" ;;
+        "armv7l") go_arch_formatted="armv6l" ;;
+        *) go_arch_formatted="amd64" ;;
+    esac
+
+    local go_url="https://go.dev/dl/go${go_version}.${go_os}-${go_arch_formatted}.tar.gz"
+    local go_temp_dir="/tmp/go-install"
+    local go_tarball="${go_temp_dir}/go.tar.gz"
+
+    # Create temp directory
+    mkdir -p "$go_temp_dir"
+
+    # Download Go tarball
+    print_message "Downloading Go ${go_version} for ${go_os}-${go_arch_formatted}..."
+    if curl -fsSL "$go_url" -o "$go_tarball" 2>&1; then
+        print_message "Go tarball downloaded successfully"
+    else
+        print_error "Failed to download Go tarball from $go_url"
+        rm -rf "$go_temp_dir"
+        return 1
+    fi
+
+    # Extract Go to /usr/local
+    print_message "Extracting Go to /usr/local..."
+    if tar -C /usr/local -xzf "$go_tarball" 2>&1; then
+        print_message "Go extracted successfully"
+    else
+        print_error "Failed to extract Go tarball"
+        rm -rf "$go_temp_dir"
+        return 1
+    fi
+
+    # Clean up temp directory
+    rm -rf "$go_temp_dir"
+
+    # Create environment file for all users
+    print_message "Creating Go environment file..."
+    cat > /etc/profile.d/go.sh << 'GO_ENV_EOF'
+# Go environment variables
+export GOROOT=/usr/local/go
+export GOPATH=\$HOME/go
+export PATH=\$PATH:/usr/local/go/bin:\$GOPATH/bin
+GO_ENV_EOF
+
+    # Set permissions
+    chmod 644 /etc/profile.d/go.sh
+
+    # Load environment immediately for current session
+    export GOROOT=/usr/local/go
+    export GOPATH=$HOME/go
+    export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+
+    # Verify installation
+    if /usr/local/go/bin/go version &>/dev/null; then
+        print_message "Go installed successfully!"
+        /usr/local/go/bin/go version
+        return 0
+    else
+        print_error "Go installation failed"
+        return 1
+    fi
+}
+
+# Setup Go workspace directories for a user
+# Arguments:
+#   $1 - Username for whom to setup Go workspace
+#   $2 - User's home directory
+# Returns:
+#   0 on success, 1 on failure (non-critical)
+setup_go_workspace() {
+    local username="$1"
+    local user_home="$2"
+    local go_path="${user_home}/go"
+
+    print_message "Setting up Go workspace for user '$username'..."
+
+    # Create Go workspace directories
+    local go_dirs=("bin" "pkg" "src")
+    local success_count=0
+
+    for dir in "${go_dirs[@]}"; do
+        local dir_path="${go_path}/${dir}"
+        print_message "Creating directory: $dir_path"
+
+        if su - "$username" -c "mkdir -p ~/go/${dir}" 2>&1; then
+            print_message "Directory $dir created successfully"
+            success_count=$((success_count + 1))
+        else
+            print_warning "Failed to create directory $dir, continuing..."
+        fi
+    done
+
+    print_message "Go workspace setup complete: $success_count/${#go_dirs[@]} directories created"
+    return 0
+}
+
+################################################################################
+# Sops Installation Functions
+################################################################################
+
+# Install Sops (Secrets OPerationS)
+# Returns:
+#   0 on success, 1 on failure (non-critical)
+install_sops() {
+    print_message "Installing Sops (Secrets OPerationS)..."
+
+    # Check if Sops is already installed
+    if command -v sops &>/dev/null; then
+        print_message "Sops is already installed, checking version..."
+        sops --version
+        return 0
+    fi
+
+    local sops_version="v3.9.0"
+    local sops_os="linux"
+    local sops_arch=$(uname -m)
+    local sops_arch_formatted
+
+    # Convert architecture to Sops format
+    case "$sops_arch" in
+        "x86_64") sops_arch_formatted="amd64" ;;
+        "aarch64"|"arm64") sops_arch_formatted="arm64" ;;
+        *) sops_arch_formatted="amd64" ;;
+    esac
+
+    local sops_url="https://github.com/mozilla/sops/releases/download/${sops_version}/sops-${sops_version}.${sops_os}.${sops_arch_formatted}"
+    local sops_dest="/usr/local/bin/sops"
+
+    # Download Sops binary
+    print_message "Downloading Sops ${sops_version} for ${sops_os}-${sops_arch_formatted}..."
+    if curl -fsSL "$sops_url" -o "$sops_dest" 2>&1; then
+        print_message "Sops binary downloaded successfully"
+    else
+        print_error "Failed to download Sops binary from $sops_url"
+        return 1
+    fi
+
+    # Set executable permissions
+    print_message "Setting executable permissions for Sops..."
+    if chmod 755 "$sops_dest" 2>&1; then
+        print_message "Permissions set successfully"
+    else
+        print_error "Failed to set executable permissions for Sops"
+        return 1
+    fi
+
+    # Verify installation
+    if command -v sops &>/dev/null; then
+        print_message "Sops installed successfully!"
+        sops --version
+        return 0
+    else
+        print_error "Sops installation failed"
+        return 1
+    fi
+}
+
+################################################################################
 # Docker Installation Functions
 ################################################################################
 
@@ -984,6 +1166,13 @@ alias meminfo='free -m -l -t'
 alias cpuinfo='lscpu'
 alias diskinfo='df -h'
 
+# Sops aliases
+if command -v sops &> /dev/null; then
+    alias sops-edit='sops edit'
+    alias sops-view='sops -d'
+    alias sops-encrypt='sops --encrypt'
+fi
+
 # Bat/batcat alias handling
 if command -v batcat &> /dev/null; then
     alias bat='batcat'
@@ -1049,6 +1238,13 @@ else
     export VISUAL='vim'
 fi
 export PAGER='less'
+
+# Go environment variables
+if [ -d /usr/local/go ]; then
+    export GOROOT=/usr/local/go
+    export GOPATH=$HOME/go
+    export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+fi
 
 # Colored man pages
 export LESS_TERMCAP_mb=$'\e[1;32m'
@@ -1743,6 +1939,16 @@ install_ranger "$USERNAME" "$USER_HOME"
 # Install additional tools
 install_additional_tools
 
+# Install Go and Sops
+print_message "Starting Go and Sops installation phase..."
+install_golang
+
+# Setup Go workspace for user
+setup_go_workspace "$USERNAME" "$USER_HOME"
+
+# Install Sops
+install_sops
+
 # Install Docker and Docker Compose
 print_message "Starting Docker installation phase..."
 install_docker
@@ -1800,6 +2006,8 @@ print_message "  - Shell: zsh with Oh My Zsh"
 print_message "  - Terminal Multiplexer: tmux"
 print_message "  - File Manager: ranger"
 print_message "  - Docker: Installed with non-root access"
+print_message "  - Go: Installed with workspace directories"
+print_message "  - Sops: Installed for secrets management"
 
 # Check if SSH keys were setup
 if [ "$SETUP_SSH_KEY" = "true" ] && [ -f "${USER_HOME}/.ssh/authorized_keys" ]; then

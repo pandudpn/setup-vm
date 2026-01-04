@@ -63,6 +63,14 @@ drm         # docker rm <container>
 drmi        # docker rmi <image>
 ```
 
+## 🔐 Sops Aliases
+
+```bash
+sops-edit    # sops edit <file>
+sops-view    # sops -d <file>
+sops-encrypt # sops --encrypt <file>
+```
+
 ## 📝 Git Aliases
 
 ```bash
