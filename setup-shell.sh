@@ -682,7 +682,8 @@ install_golang() {
 # Go environment variables
 export GOROOT=/usr/local/go
 export GOPATH=\$HOME/go
-export PATH=\$PATH:/usr/local/go/bin:\$GOPATH/bin
+# Ensure standard PATH is set before adding Go paths
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH:/usr/local/go/bin:\$GOPATH/bin
 GO_ENV_EOF
 
     # Set permissions
@@ -1091,6 +1092,9 @@ create_zshrc() {
     
     # Create .zshrc with complete configuration
     cat > "$destination" << 'ZSHRC_EOF'
+# Ensure default PATH is set before Oh My Zsh
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
+
 # Path to Oh My Zsh installation
 export ZSH="$HOME/.oh-my-zsh"
 
@@ -1243,6 +1247,7 @@ export PAGER='less'
 if [ -d /usr/local/go ]; then
     export GOROOT=/usr/local/go
     export GOPATH=$HOME/go
+    # Append Go paths to PATH (PATH is already set with defaults at the top of this file)
     export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 fi
 
