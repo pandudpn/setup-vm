@@ -2,11 +2,11 @@
 
 ################################################################################
 # Terminal Setup Script
-# 
+#
 # Purpose: Automates installation and configuration of a complete development
 #          environment including tmux, zsh, ranger, Docker, and various CLI tools
 #
-# Requirements: 
+# Requirements:
 #   - Debian/Ubuntu-based Linux distribution
 #   - Root privileges (run with sudo)
 #   - Internet connection
@@ -102,7 +102,7 @@ get_actual_user() {
         ACTUAL_USER="root"
         USER_HOME="/root"
     fi
-    
+
     print_message "Identified actual user: $ACTUAL_USER (home: $USER_HOME)"
 }
 
@@ -113,7 +113,7 @@ get_actual_user() {
 #   0 if user exists, 1 if user does not exist
 check_user_exists() {
     local username="$1"
-    
+
     if id "$username" &>/dev/null; then
         return 0
     else
@@ -128,14 +128,14 @@ check_user_exists() {
 #   0 on success, 1 on failure
 create_user() {
     local username="$1"
-    
+
     if check_user_exists "$username"; then
         print_warning "User '$username' already exists, skipping creation"
         return 0
     fi
-    
+
     print_message "Creating user '$username' with home directory..."
-    
+
     if useradd -m -s /bin/bash "$username"; then
         print_message "User '$username' created successfully"
         return 0
@@ -152,14 +152,14 @@ create_user() {
 #   0 on success, 1 on failure
 set_user_password() {
     local username="$1"
-    
+
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     print_message "Setting password for user '$username'..."
-    
+
     if passwd "$username"; then
         print_message "Password set successfully for '$username'"
         return 0
@@ -176,14 +176,14 @@ set_user_password() {
 #   0 on success, 1 on failure
 add_to_sudo_group() {
     local username="$1"
-    
+
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     print_message "Adding user '$username' to sudo group..."
-    
+
     if usermod -aG sudo "$username"; then
         print_message "User '$username' added to sudo group successfully"
         return 0
@@ -203,7 +203,7 @@ add_to_sudo_group() {
 #   0 on success or if no action needed, 1 on failure (non-critical)
 fix_gpg_keys() {
     print_message "Checking and fixing GPG keys..."
-    
+
     # Method 1: Update existing keys
     print_message "Attempting to update existing GPG keys..."
     if apt-key update 2>/dev/null; then
@@ -212,20 +212,20 @@ fix_gpg_keys() {
     else
         print_warning "apt-key update failed or is deprecated, trying alternative methods..."
     fi
-    
+
     # Method 2: Fix permissions on apt directories
     print_message "Fixing permissions on apt directories..."
     chmod -R 755 /etc/apt/sources.list.d/ 2>/dev/null || true
     chmod 644 /etc/apt/sources.list 2>/dev/null || true
-    
+
     # Method 3: Remove problematic repository lists and re-add them
     print_message "Cleaning up potentially problematic repository configurations..."
-    
+
     # Clean apt cache
     apt-get clean 2>/dev/null || true
     rm -rf /var/lib/apt/lists/* 2>/dev/null || true
     mkdir -p /var/lib/apt/lists/partial 2>/dev/null || true
-    
+
     print_message "GPG key fix attempts completed"
     return 0
 }
@@ -236,20 +236,20 @@ fix_gpg_keys() {
 #   0 on success, 1 on failure (non-critical)
 update_package_lists() {
     print_message "Updating package lists..."
-    
+
     local max_attempts=3
     local attempt=1
-    
+
     # Attempt 1: Standard update
     while [ $attempt -le $max_attempts ]; do
         print_message "Update attempt $attempt of $max_attempts..."
-        
+
         if apt-get update 2>&1; then
             print_message "Package lists updated successfully"
             return 0
         else
             print_warning "Package update attempt $attempt failed"
-            
+
             if [ $attempt -eq 1 ]; then
                 # After first failure, try fixing GPG keys
                 print_message "Attempting to fix GPG keys before retry..."
@@ -262,16 +262,16 @@ update_package_lists() {
                     return 0
                 fi
             fi
-            
+
             attempt=$((attempt + 1))
-            
+
             if [ $attempt -le $max_attempts ]; then
                 print_message "Waiting 2 seconds before retry..."
                 sleep 2
             fi
         fi
     done
-    
+
     # If all attempts failed, log warning but don't exit
     print_warning "Failed to update package lists after $max_attempts attempts"
     print_warning "Continuing with installation, but some packages may fail..."
@@ -288,7 +288,7 @@ update_package_lists() {
 #   0 on success (even if some packages fail), 1 only on critical failure
 install_basic_tools() {
     print_message "Installing basic development tools..."
-    
+
     local packages=(
         "git"
         "curl"
@@ -307,10 +307,10 @@ install_basic_tools() {
     )
     local failed_packages=()
     local success_count=0
-    
+
     for package in "${packages[@]}"; do
         print_message "Installing $package..."
-        
+
         if apt-get install -y "$package" 2>&1; then
             print_message "$package installed successfully"
             success_count=$((success_count + 1))
@@ -319,14 +319,14 @@ install_basic_tools() {
             failed_packages+=("$package")
         fi
     done
-    
+
     # Report results
     print_message "Basic tools installation complete: $success_count/${#packages[@]} packages installed"
-    
+
     if [ ${#failed_packages[@]} -gt 0 ]; then
         print_warning "Failed packages: ${failed_packages[*]}"
     fi
-    
+
     # Return success even if some packages failed (error resilience)
     return 0
 }
@@ -336,7 +336,7 @@ install_basic_tools() {
 #   0 on success, 1 on failure (non-critical)
 install_tmux() {
     print_message "Installing tmux..."
-    
+
     if apt-get install -y tmux 2>&1; then
         print_message "tmux installed successfully"
         return 0
@@ -355,7 +355,7 @@ install_tmux() {
 #   0 on success, 1 on failure (non-critical)
 install_zsh() {
     print_message "Installing zsh..."
-    
+
     if apt-get install -y zsh 2>&1; then
         print_message "zsh installed successfully"
         return 0
@@ -375,15 +375,15 @@ install_oh_my_zsh() {
     local username="$1"
     local user_home="$2"
     local oh_my_zsh_dir="${user_home}/.oh-my-zsh"
-    
+
     print_message "Installing Oh My Zsh for user '$username'..."
-    
+
     # Check if Oh My Zsh is already installed
     if [ -d "$oh_my_zsh_dir" ]; then
         print_warning "Oh My Zsh already installed at $oh_my_zsh_dir"
         return 0
     fi
-    
+
     # Install Oh My Zsh in unattended mode
     # Use su to run as the target user to ensure proper ownership
     if su - "$username" -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended' 2>&1; then
@@ -405,15 +405,15 @@ update_oh_my_zsh() {
     local username="$1"
     local user_home="$2"
     local oh_my_zsh_dir="${user_home}/.oh-my-zsh"
-    
+
     print_message "Checking for Oh My Zsh updates for user '$username'..."
-    
+
     # Check if Oh My Zsh is installed
     if [ ! -d "$oh_my_zsh_dir" ]; then
         print_warning "Oh My Zsh not installed at $oh_my_zsh_dir, skipping update"
         return 1
     fi
-    
+
     # Update Oh My Zsh via git pull
     print_message "Updating Oh My Zsh..."
     if su - "$username" -c "cd ~/.oh-my-zsh && git pull" 2>&1; then
@@ -436,9 +436,9 @@ install_zsh_plugins() {
     local user_home="$2"
     local zsh_custom_dir="${user_home}/.oh-my-zsh/custom"
     local zsh_plugins_dir="${user_home}/.zsh"
-    
+
     print_message "Installing zsh plugins for user '$username'..."
-    
+
     # Create .zsh directory for plugins if it doesn't exist
     if [ ! -d "$zsh_plugins_dir" ]; then
         print_message "Creating .zsh directory at $zsh_plugins_dir..."
@@ -448,7 +448,7 @@ install_zsh_plugins() {
             print_warning "Failed to create .zsh directory, continuing..."
         fi
     fi
-    
+
     # Install zsh-autosuggestions
     local autosuggestions_dir="${zsh_plugins_dir}/zsh-autosuggestions"
     if [ ! -d "$autosuggestions_dir" ]; then
@@ -462,7 +462,7 @@ install_zsh_plugins() {
         print_message "zsh-autosuggestions already installed, updating..."
         su - "$username" -c "cd ~/.zsh/zsh-autosuggestions && git pull" 2>&1 || print_warning "Failed to update zsh-autosuggestions"
     fi
-    
+
     # Install zsh-syntax-highlighting
     local syntax_highlighting_dir="${zsh_plugins_dir}/zsh-syntax-highlighting"
     if [ ! -d "$syntax_highlighting_dir" ]; then
@@ -476,7 +476,7 @@ install_zsh_plugins() {
         print_message "zsh-syntax-highlighting already installed, updating..."
         su - "$username" -c "cd ~/.zsh/zsh-syntax-highlighting && git pull" 2>&1 || print_warning "Failed to update zsh-syntax-highlighting"
     fi
-    
+
     print_message "Zsh plugins installation complete"
     return 0
 }
@@ -488,22 +488,22 @@ install_zsh_plugins() {
 #   0 on success, 1 on failure
 set_default_shell() {
     local username="$1"
-    
+
     # Check if user exists first
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     local shell_path=$(which zsh 2>/dev/null)
-    
+
     if [ -z "$shell_path" ]; then
         print_error "zsh not found in PATH"
         return 1
     fi
-    
+
     print_message "Setting zsh as default shell for '$username'..."
-    
+
     if chsh -s "$shell_path" "$username" 2>&1; then
         print_message "Default shell set to zsh for '$username'"
         return 0
@@ -526,18 +526,18 @@ set_default_shell() {
 install_ranger() {
     local username="$1"
     local user_home="$2"
-    
+
     print_message "Installing ranger file manager and preview dependencies..."
-    
+
     # List of packages to install
     local packages=("ranger" "highlight" "caca-utils" "atool" "w3m" "poppler-utils" "mediainfo")
     local failed_packages=()
     local success_count=0
-    
+
     # Install each package
     for package in "${packages[@]}"; do
         print_message "Installing $package..."
-        
+
         if apt-get install -y "$package" 2>&1; then
             print_message "$package installed successfully"
             success_count=$((success_count + 1))
@@ -546,22 +546,22 @@ install_ranger() {
             failed_packages+=("$package")
         fi
     done
-    
+
     # Report installation results
     print_message "Ranger installation complete: $success_count/${#packages[@]} packages installed"
-    
+
     if [ ${#failed_packages[@]} -gt 0 ]; then
         print_warning "Failed packages: ${failed_packages[*]}"
     fi
-    
+
     # Create ranger config directory and generate default configuration
     local ranger_config_dir="${user_home}/.config/ranger"
-    
+
     print_message "Creating ranger configuration directory at $ranger_config_dir..."
-    
+
     if su - "$username" -c "mkdir -p ~/.config/ranger" 2>&1; then
         print_message "Ranger config directory created successfully"
-        
+
         # Generate default ranger configuration
         print_message "Generating default ranger configuration..."
         if su - "$username" -c "ranger --copy-config=all" 2>&1; then
@@ -572,7 +572,7 @@ install_ranger() {
     else
         print_warning "Failed to create ranger config directory, continuing..."
     fi
-    
+
     # Return success even if some packages failed (error resilience)
     return 0
 }
@@ -587,14 +587,14 @@ install_ranger() {
 #   0 on success (even if some packages fail), 1 only on critical failure
 install_additional_tools() {
     print_message "Installing additional CLI tools..."
-    
+
     local packages=("fzf" "ripgrep" "ncdu" "htop" "neofetch" "bat")
     local failed_packages=()
     local success_count=0
-    
+
     for package in "${packages[@]}"; do
         print_message "Installing $package..."
-        
+
         if apt-get install -y "$package" 2>&1; then
             print_message "$package installed successfully"
             success_count=$((success_count + 1))
@@ -603,15 +603,15 @@ install_additional_tools() {
             failed_packages+=("$package")
         fi
     done
-    
+
     # Report results
     print_message "Additional tools installation complete: $success_count/${#packages[@]} packages installed"
-    
+
     if [ ${#failed_packages[@]} -gt 0 ]; then
         print_warning "Failed packages: ${failed_packages[*]}"
         print_message "Some tools may not be available in your distribution's repositories"
     fi
-    
+
     # Return success even if some packages failed (error resilience)
     return 0
 }
@@ -755,7 +755,7 @@ install_sops() {
         return 0
     fi
 
-    local sops_version="v3.9.0"
+    local sops_version="v3.11.0"
     local sops_os="linux"
     local sops_arch=$(uname -m)
     local sops_arch_formatted
@@ -808,24 +808,24 @@ install_sops() {
 #   0 on success, 1 on failure (non-critical)
 install_docker() {
     print_message "Installing Docker from official repository..."
-    
+
     # Check if Docker is already installed
     if command -v docker &>/dev/null; then
         print_message "Docker is already installed, checking version..."
         docker --version
         return 0
     fi
-    
+
     # Install prerequisites
     print_message "Installing Docker prerequisites..."
     if ! apt-get install -y ca-certificates curl gnupg lsb-release 2>&1; then
         print_warning "Failed to install Docker prerequisites, continuing..."
     fi
-    
+
     # Create directory for Docker GPG key
     print_message "Setting up Docker GPG key..."
     mkdir -p /etc/apt/keyrings
-    
+
     # Add Docker's official GPG key
     if curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>&1; then
         print_message "Docker GPG key added successfully"
@@ -841,20 +841,20 @@ install_docker() {
             return 1
         fi
     fi
-    
+
     # Add Docker repository to apt sources
     print_message "Adding Docker repository to apt sources..."
-    
+
     # Detect distribution
     local distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
     local codename=$(lsb_release -cs)
-    
+
     # Try Ubuntu repository first, fallback to Debian
     if [ "$distro" = "ubuntu" ] || [ "$distro" = "debian" ]; then
         echo \
           "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$distro \
           $codename stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-        
+
         print_message "Docker repository added successfully"
     else
         print_warning "Unsupported distribution: $distro, trying Debian repository..."
@@ -862,23 +862,23 @@ install_docker() {
           "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
           $codename stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     fi
-    
+
     # Update package lists
     print_message "Updating package lists with Docker repository..."
     if ! apt-get update 2>&1; then
         print_warning "Failed to update package lists, continuing..."
     fi
-    
+
     # Install Docker packages
     print_message "Installing Docker packages (docker-ce, docker-ce-cli, containerd.io)..."
-    
+
     local docker_packages=("docker-ce" "docker-ce-cli" "containerd.io")
     local failed_packages=()
     local success_count=0
-    
+
     for package in "${docker_packages[@]}"; do
         print_message "Installing $package..."
-        
+
         if apt-get install -y "$package" 2>&1; then
             print_message "$package installed successfully"
             success_count=$((success_count + 1))
@@ -887,15 +887,15 @@ install_docker() {
             failed_packages+=("$package")
         fi
     done
-    
+
     # Report results
     print_message "Docker installation complete: $success_count/${#docker_packages[@]} packages installed"
-    
+
     if [ ${#failed_packages[@]} -gt 0 ]; then
         print_warning "Failed packages: ${failed_packages[*]}"
         return 1
     fi
-    
+
     # Verify Docker installation
     if command -v docker &>/dev/null; then
         print_message "Docker installed successfully!"
@@ -912,19 +912,19 @@ install_docker() {
 #   0 on success, 1 on failure (non-critical)
 install_docker_compose() {
     print_message "Installing Docker Compose..."
-    
+
     # Check if docker-compose is already installed
     if command -v docker-compose &>/dev/null; then
         print_message "Docker Compose is already installed, checking version..."
         docker-compose --version
         return 0
     fi
-    
+
     # Try to install docker-compose-plugin first (recommended method)
     print_message "Installing docker-compose-plugin..."
     if apt-get install -y docker-compose-plugin 2>&1; then
         print_message "docker-compose-plugin installed successfully"
-        
+
         # Verify installation
         if docker compose version &>/dev/null; then
             print_message "Docker Compose (plugin) installed successfully!"
@@ -934,12 +934,12 @@ install_docker_compose() {
     else
         print_warning "Failed to install docker-compose-plugin, trying standalone docker-compose..."
     fi
-    
+
     # Fallback: Try to install standalone docker-compose package
     print_message "Installing standalone docker-compose package..."
     if apt-get install -y docker-compose 2>&1; then
         print_message "docker-compose installed successfully"
-        
+
         # Verify installation
         if command -v docker-compose &>/dev/null; then
             print_message "Docker Compose installed successfully!"
@@ -949,24 +949,24 @@ install_docker_compose() {
     else
         print_warning "Failed to install docker-compose package"
     fi
-    
+
     # If both methods failed, try downloading binary directly
     print_message "Attempting to download Docker Compose binary directly..."
-    
-    local compose_version="v2.24.0"
+
+    local compose_version="v5.0.1"
     local compose_url="https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-$(uname -s)-$(uname -m)"
     local compose_dest="/usr/local/bin/docker-compose"
-    
+
     if curl -L "$compose_url" -o "$compose_dest" 2>&1; then
         chmod +x "$compose_dest"
-        
+
         if command -v docker-compose &>/dev/null; then
             print_message "Docker Compose binary installed successfully!"
             docker-compose --version
             return 0
         fi
     fi
-    
+
     print_warning "Failed to install Docker Compose"
     return 1
 }
@@ -978,12 +978,12 @@ install_docker_compose() {
 #   0 on success, 1 on failure
 configure_docker_access() {
     local username="$1"
-    
+
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     # Check if docker group exists
     if ! getent group docker &>/dev/null; then
         print_message "Docker group does not exist, creating it..."
@@ -992,9 +992,9 @@ configure_docker_access() {
             return 1
         fi
     fi
-    
+
     print_message "Adding user '$username' to docker group..."
-    
+
     if usermod -aG docker "$username" 2>&1; then
         print_message "User '$username' added to docker group successfully"
         print_message "Note: User may need to log out and back in for group changes to take effect"
@@ -1010,13 +1010,13 @@ configure_docker_access() {
 #   0 on success, 1 on failure (non-critical)
 enable_docker_service() {
     print_message "Enabling and starting Docker service..."
-    
+
     # Check if systemctl is available
     if ! command -v systemctl &>/dev/null; then
         print_warning "systemctl not available, skipping Docker service configuration"
         return 1
     fi
-    
+
     # Enable Docker service to start on boot
     print_message "Enabling Docker service..."
     if systemctl enable docker 2>&1; then
@@ -1024,7 +1024,7 @@ enable_docker_service() {
     else
         print_warning "Failed to enable Docker service, continuing..."
     fi
-    
+
     # Start Docker service
     print_message "Starting Docker service..."
     if systemctl start docker 2>&1; then
@@ -1032,7 +1032,7 @@ enable_docker_service() {
     else
         print_warning "Failed to start Docker service, it may already be running"
     fi
-    
+
     # Check Docker service status
     print_message "Checking Docker service status..."
     if systemctl is-active --quiet docker; then
@@ -1055,19 +1055,19 @@ enable_docker_service() {
 #   0 on success or if file doesn't exist, 1 on failure
 backup_existing_config() {
     local filepath="$1"
-    
+
     # Check if file exists
     if [ ! -f "$filepath" ]; then
         print_message "No existing file at $filepath, no backup needed"
         return 0
     fi
-    
+
     # Create timestamped backup
     local timestamp=$(date +%Y%m%d%H%M%S)
     local backup_path="${filepath}.backup.${timestamp}"
-    
+
     print_message "Backing up existing file $filepath to $backup_path..."
-    
+
     if cp "$filepath" "$backup_path" 2>&1; then
         print_message "Backup created successfully at $backup_path"
         return 0
@@ -1359,12 +1359,12 @@ ZSHRC_COMMON_EOF
 #   0 on success, 1 on failure
 create_tmux_conf() {
     local destination="$1"
-    
+
     print_message "Creating .tmux.conf configuration at $destination..."
-    
+
     # Backup existing file if present
     backup_existing_config "$destination"
-    
+
     # Create .tmux.conf with complete configuration
     cat > "$destination" << 'TMUX_EOF'
 # Enable mouse support
@@ -1441,7 +1441,7 @@ set -sg escape-time 0
 # Display pane numbers for longer
 set -g display-panes-time 2000
 TMUX_EOF
-    
+
     if [ $? -eq 0 ]; then
         print_message ".tmux.conf created successfully at $destination"
         return 0
@@ -1466,9 +1466,9 @@ create_neofetch_config() {
     local user_home="$2"
     local config_dir="${user_home}/.config/neofetch"
     local config_file="${config_dir}/config.conf"
-    
+
     print_message "Creating custom neofetch configuration for '$username'..."
-    
+
     # Create config directory
     if [ ! -d "$config_dir" ]; then
         if su - "$username" -c "mkdir -p ~/.config/neofetch" 2>&1; then
@@ -1478,7 +1478,7 @@ create_neofetch_config() {
             return 1
         fi
     fi
-    
+
     # Create custom neofetch config
     cat > "$config_file" << 'NEOFETCH_EOF'
 # Neofetch Custom Configuration
@@ -1636,7 +1636,7 @@ background_color=
 # Misc Options
 stdout="off"
 NEOFETCH_EOF
-    
+
     # Set ownership
     if chown "${username}:${username}" "$config_file" 2>&1; then
         chmod 644 "$config_file" 2>&1 || true
@@ -1659,52 +1659,52 @@ NEOFETCH_EOF
 #   0 on success, 1 on failure (non-critical)
 fix_ownership() {
     local username="$1"
-    
+
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     # Get user's home directory
     local user_home=$(getent passwd "$username" 2>/dev/null | cut -d: -f6)
     if [ -z "$user_home" ]; then
         user_home="/home/$username"
     fi
-    
+
     print_message "Fixing ownership and permissions for user '$username'..."
-    
+
     # List of directories to fix ownership (recursively)
     local directories=(
         "${user_home}/.oh-my-zsh"
         "${user_home}/.zsh"
         "${user_home}/.config/ranger"
     )
-    
+
     # List of files to fix ownership
     local files=(
         "${user_home}/.zshrc"
         "${user_home}/.tmux.conf"
     )
-    
+
     # Fix ownership for directories (recursively)
     for dir in "${directories[@]}"; do
         if [ -d "$dir" ]; then
             print_message "Setting ownership for directory: $dir"
-            
+
             # Set ownership recursively
             if chown -R "${username}:${username}" "$dir" 2>&1; then
                 print_message "Ownership set successfully for $dir"
             else
                 print_warning "Failed to set ownership for $dir, continuing..."
             fi
-            
+
             # Set directory permissions to 755
             if find "$dir" -type d -exec chmod 755 {} \; 2>&1; then
                 print_message "Directory permissions set to 755 for $dir"
             else
                 print_warning "Failed to set directory permissions for $dir, continuing..."
             fi
-            
+
             # Set file permissions to 644 within the directory
             if find "$dir" -type f -exec chmod 644 {} \; 2>&1; then
                 print_message "File permissions set to 644 within $dir"
@@ -1715,19 +1715,19 @@ fix_ownership() {
             print_message "Directory $dir does not exist, skipping..."
         fi
     done
-    
+
     # Fix ownership for individual files
     for file in "${files[@]}"; do
         if [ -f "$file" ]; then
             print_message "Setting ownership for file: $file"
-            
+
             # Set ownership
             if chown "${username}:${username}" "$file" 2>&1; then
                 print_message "Ownership set successfully for $file"
             else
                 print_warning "Failed to set ownership for $file, continuing..."
             fi
-            
+
             # Set file permissions to 644
             if chmod 644 "$file" 2>&1; then
                 print_message "File permissions set to 644 for $file"
@@ -1738,7 +1738,7 @@ fix_ownership() {
             print_message "File $file does not exist, skipping..."
         fi
     done
-    
+
     print_message "Ownership and permissions fixed successfully for '$username'"
     return 0
 }
@@ -1756,12 +1756,12 @@ fix_ownership() {
 setup_ssh_keys() {
     local username="$1"
     local key_url="$2"
-    
+
     if [ -z "$key_url" ]; then
         print_warning "No SSH key URL provided, skipping SSH key setup"
         return 1
     fi
-    
+
     # Check if URL is still the default placeholder
     if [[ "$key_url" == *"YOUR_GITHUB_USERNAME"* ]]; then
         print_warning "SSH key URL is still set to default placeholder"
@@ -1769,27 +1769,27 @@ setup_ssh_keys() {
         print_warning "Skipping SSH key setup"
         return 1
     fi
-    
+
     if ! check_user_exists "$username"; then
         print_error "User '$username' does not exist"
         return 1
     fi
-    
+
     # Get user's home directory
     local user_home=$(getent passwd "$username" 2>/dev/null | cut -d: -f6)
     if [ -z "$user_home" ]; then
         user_home="/home/$username"
     fi
-    
+
     local ssh_dir="${user_home}/.ssh"
     local authorized_keys="${ssh_dir}/authorized_keys"
-    
+
     print_message "Setting up SSH keys for user '$username'..."
-    
+
     # Create .ssh directory if it doesn't exist
     if [ ! -d "$ssh_dir" ]; then
         print_message "Creating .ssh directory at $ssh_dir..."
-        
+
         if su - "$username" -c "mkdir -p ~/.ssh" 2>&1; then
             print_message ".ssh directory created successfully"
         else
@@ -1797,12 +1797,12 @@ setup_ssh_keys() {
             return 1
         fi
     fi
-    
+
     # Download public key from URL
     print_message "Downloading SSH public key from: $key_url"
-    
+
     local temp_key_file=$(mktemp)
-    
+
     if curl -fsSL "$key_url" -o "$temp_key_file" 2>&1; then
         print_message "SSH public key downloaded successfully"
     elif wget -q "$key_url" -O "$temp_key_file" 2>&1; then
@@ -1812,14 +1812,14 @@ setup_ssh_keys() {
         rm -f "$temp_key_file"
         return 1
     fi
-    
+
     # Verify the downloaded file is not empty
     if [ ! -s "$temp_key_file" ]; then
         print_error "Downloaded SSH key file is empty"
         rm -f "$temp_key_file"
         return 1
     fi
-    
+
     # Verify the file contains valid SSH key format
     if ! grep -qE "^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ssh-dss)" "$temp_key_file"; then
         print_error "Downloaded file does not appear to contain valid SSH public keys"
@@ -1828,14 +1828,14 @@ setup_ssh_keys() {
         rm -f "$temp_key_file"
         return 1
     fi
-    
+
     # Backup existing authorized_keys if present
     if [ -f "$authorized_keys" ]; then
         local timestamp=$(date +%Y%m%d%H%M%S)
         local backup_file="${authorized_keys}.backup.${timestamp}"
-        
+
         print_message "Backing up existing authorized_keys to $backup_file"
-        
+
         if cp "$authorized_keys" "$backup_file" 2>&1; then
             chown "${username}:${username}" "$backup_file" 2>/dev/null || true
             print_message "Backup created successfully"
@@ -1843,10 +1843,10 @@ setup_ssh_keys() {
             print_warning "Failed to create backup of authorized_keys"
         fi
     fi
-    
+
     # Copy the downloaded key to authorized_keys
     print_message "Installing SSH public key to $authorized_keys..."
-    
+
     if cp "$temp_key_file" "$authorized_keys" 2>&1; then
         print_message "SSH public key installed successfully"
     else
@@ -1854,20 +1854,20 @@ setup_ssh_keys() {
         rm -f "$temp_key_file"
         return 1
     fi
-    
+
     # Clean up temp file
     rm -f "$temp_key_file"
-    
+
     # Set correct ownership and permissions
     print_message "Setting correct ownership and permissions for SSH files..."
-    
+
     # Set ownership for .ssh directory and contents
     if chown -R "${username}:${username}" "$ssh_dir" 2>&1; then
         print_message "Ownership set successfully"
     else
         print_warning "Failed to set ownership for .ssh directory"
     fi
-    
+
     # Set correct permissions
     # .ssh directory: 700 (rwx------)
     if chmod 700 "$ssh_dir" 2>&1; then
@@ -1875,19 +1875,19 @@ setup_ssh_keys() {
     else
         print_warning "Failed to set permissions for .ssh directory"
     fi
-    
+
     # authorized_keys file: 600 (rw-------)
     if chmod 600 "$authorized_keys" 2>&1; then
         print_message "Permissions set to 600 for authorized_keys"
     else
         print_warning "Failed to set permissions for authorized_keys"
     fi
-    
+
     # Display the installed keys
     print_message "Installed SSH public keys:"
     local key_count=$(grep -c "^ssh-" "$authorized_keys" 2>/dev/null || echo "0")
     print_message "  - Number of keys: $key_count"
-    
+
     if [ "$key_count" -gt 0 ]; then
         print_message "  - Key fingerprints:"
         while IFS= read -r key; do
@@ -1899,7 +1899,7 @@ setup_ssh_keys() {
             fi
         done < "$authorized_keys"
     fi
-    
+
     print_message "SSH key setup completed successfully for '$username'"
     return 0
 }
@@ -1926,12 +1926,12 @@ print_message "Setting up environment for user: $USERNAME"
 # Create or verify user
 if ! check_user_exists "$USERNAME"; then
     print_message "User '$USERNAME' does not exist, creating..."
-    
+
     if ! create_user "$USERNAME"; then
         print_error "Failed to create user '$USERNAME'"
         exit 1
     fi
-    
+
     # Set user password to disabled (no password required for sudo from root)
     print_message "Setting up passwordless user (you can set password later with: sudo passwd $USERNAME)..."
     if passwd -d "$USERNAME" 2>&1; then
@@ -1939,7 +1939,7 @@ if ! check_user_exists "$USERNAME"; then
     else
         print_warning "Failed to disable password for '$USERNAME', continuing..."
     fi
-    
+
     # Add user to sudo group
     if ! add_to_sudo_group "$USERNAME"; then
         print_warning "Failed to add '$USERNAME' to sudo group, continuing..."
