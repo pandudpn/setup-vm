@@ -1080,25 +1080,75 @@ backup_existing_config() {
 # Create .zshrc configuration file with complete settings
 # Arguments:
 #   $1 - Destination path for .zshrc file
+#   $2 - User's home directory (optional, used to check Oh My Zsh)
 # Returns:
 #   0 on success, 1 on failure
 create_zshrc() {
     local destination="$1"
-    
+    local user_home="${2:-$HOME}"
+    local oh_my_zsh_dir="${user_home}/.oh-my-zsh"
+    local has_oh_my_zsh="false"
+
     print_message "Creating .zshrc configuration at $destination..."
-    
+
+    # Check if Oh My Zsh is installed
+    if [ -d "$oh_my_zsh_dir" ]; then
+        has_oh_my_zsh="true"
+        print_message "Oh My Zsh detected, creating enhanced .zshrc with Oh My Zsh support"
+    else
+        print_warning "Oh My Zsh not found, creating basic .zshrc configuration"
+    fi
+
     # Backup existing file if present
     backup_existing_config "$destination"
-    
-    # Create .zshrc with complete configuration
-    cat > "$destination" << 'ZSHRC_EOF'
-# Ensure default PATH is set before Oh My Zsh
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 
+    # Create .zshrc with or without Oh My Zsh support
+    cat > "$destination" << ZSHRC_EOF
+# Ensure default PATH is set before Oh My Zsh
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
+
+# Basic zsh settings
+HISTSIZE=10000
+SAVEHIST=10000
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_FIND_NO_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+setopt AUTO_CD
+setopt CORRECT
+
+# Enable colors
+autoload -U colors && colors
+
+# Key bindings
+bindkey '^[[A' history-beginning-search-backward
+bindkey '^[[B' history-beginning-search-forward
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+bindkey '^[[3~' delete-char
+
+# Tab completion settings
+autoload -Uz compinit
+compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' list-colors "\${(s.:.)LS_COLORS}"
+zstyle ':completion:*' rehash true
+zstyle ':completion:*' accept-exact '*(N)'
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
+ZSHRC_EOF
+
+    # Add Oh My Zsh configuration if installed
+    if [ "$has_oh_my_zsh" = "true" ]; then
+        cat >> "$destination" << 'ZSHRC_OMZ_EOF'
 # Path to Oh My Zsh installation
 export ZSH="$HOME/.oh-my-zsh"
 
-# Set theme - Options: robbyrussell, agnoster, powerlevel10k/powerlevel10k, 
+# Set theme - Options: robbyrussell, agnoster, powerlevel10k/powerlevel10k,
 # af-magic, bira, cloud, dallas, dst, fino, jonathan, ys
 ZSH_THEME="agnoster"
 
@@ -1118,6 +1168,23 @@ plugins=(
 
 # Load Oh My Zsh
 source $ZSH/oh-my-zsh.sh
+
+ZSHRC_OMZ_EOF
+    else
+        # Add basic prompt if Oh My Zsh is not installed
+        cat >> "$destination" << 'ZSHRC_PROMPT_EOF'
+# Basic prompt with colors
+if [ -n "$SSH_CLIENT" ]; then
+    PROMPT="%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}%# "
+else
+    PROMPT="%{$fg[green]%}%~%{$reset_color%}%# "
+fi
+
+ZSHRC_PROMPT_EOF
+    fi
+
+    # Add common configuration (aliases, environment, etc.)
+    cat >> "$destination" << 'ZSHRC_COMMON_EOF'
 
 # Custom aliases
 alias ll='ls -lah --color=auto'
@@ -1185,34 +1252,6 @@ elif command -v bat &> /dev/null; then
     alias cat='bat --paging=never'
 fi
 
-# History settings
-HISTSIZE=10000
-SAVEHIST=10000
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_FIND_NO_DUPS
-setopt HIST_SAVE_NO_DUPS
-setopt SHARE_HISTORY
-setopt APPEND_HISTORY
-setopt INC_APPEND_HISTORY
-
-# Key bindings
-bindkey '^[[A' history-beginning-search-backward
-bindkey '^[[B' history-beginning-search-forward
-bindkey '^[[H' beginning-of-line
-bindkey '^[[F' end-of-line
-bindkey '^[[3~' delete-char
-
-# Tab completion settings
-autoload -Uz compinit
-compinit
-zstyle ':completion:*' menu select
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
-zstyle ':completion:*' rehash true
-zstyle ':completion:*' accept-exact '*(N)'
-zstyle ':completion:*' use-cache on
-zstyle ':completion:*' cache-path ~/.zsh/cache
-
 # Source zsh plugins
 if [ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
     source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
@@ -1224,10 +1263,10 @@ if [ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
     source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 fi
 
-# Custom prompt context (hide user@hostname if default user)
-DEFAULT_USER="deploy"
-prompt_context() {
-  if [[ "$USER" != "$DEFAULT_USER" || -n "$SSH_CLIENT" ]]; then
+# Custom prompt context (only for Oh My Zsh)
+# This is only used when Oh My Zsh is installed
+prompt_context_custom() {
+  if [[ "$USER" != "deploy" || -n "$SSH_CLIENT" ]]; then
     prompt_segment black default "%(!.%{%F{yellow}%}.)$USER"
   fi
 }
@@ -1302,8 +1341,8 @@ help-aliases() {
     echo "  cat           - Bat (syntax highlighting)"
     echo ""
 }
-ZSHRC_EOF
-    
+ZSHRC_COMMON_EOF
+
     if [ $? -eq 0 ]; then
         print_message ".zshrc created successfully at $destination"
         return 0
@@ -1970,7 +2009,7 @@ print_message "Creating configuration files..."
 
 # Create .zshrc
 ZSHRC_PATH="${USER_HOME}/.zshrc"
-create_zshrc "$ZSHRC_PATH"
+create_zshrc "$ZSHRC_PATH" "$USER_HOME"
 
 # Create .tmux.conf
 TMUX_CONF_PATH="${USER_HOME}/.tmux.conf"
