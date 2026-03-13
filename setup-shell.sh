@@ -2347,19 +2347,26 @@ show_menu() {
             local idx=$((i + 1))
             local state
             if [ "${COMP_SELECTED[$i]}" -eq 1 ]; then
-                state="${COLOR_GREEN}[x]${COLOR_RESET}"
+                state="\033[1;32m[x]\033[0m"
             else
-                state="${COLOR_DIM}[ ]${COLOR_RESET}"
+                state="\033[2m[ ]\033[0m"
             fi
 
-            printf "  %s %2d) %-20s ${COLOR_DIM}— %s${COLOR_RESET}\n" \
-                "$state" "$idx" "${COMP_NAMES[$i]}" "${COMP_DESCS[$i]}"
+            # Pad name to 20 chars
+            local name="${COMP_NAMES[$i]}"
+            local padded_name
+            padded_name=$(printf "%-20s" "$name")
+
+            local num_display
+            num_display=$(printf "%2d" "$idx")
+
+            echo -e "  ${state} ${num_display}) ${padded_name} \033[2m— ${COMP_DESCS[$i]}\033[0m"
         done
 
         echo ""
-        echo -e "  ${COLOR_DIM}──────────────────────────────────────────────────────────────${COLOR_RESET}"
-        echo -e "  ${COLOR_WHITE}Toggle: 1-${COMP_COUNT}   ${COLOR_GREEN}[a]${COLOR_RESET} All ON   ${COLOR_YELLOW}[n]${COLOR_RESET} All OFF   ${COLOR_CYAN}[r]${COLOR_RESET} Run   ${COLOR_RED}[q]${COLOR_RESET} Quit"
-        echo -e "  ${COLOR_DIM}──────────────────────────────────────────────────────────────${COLOR_RESET}"
+        echo -e "  \033[2m──────────────────────────────────────────────────────────────\033[0m"
+        echo -e "  \033[1;37mToggle: 1-${COMP_COUNT}\033[0m   \033[1;32m[a]\033[0m All ON   \033[1;33m[n]\033[0m All OFF   \033[1;36m[r]\033[0m Run   \033[1;31m[q]\033[0m Quit"
+        echo -e "  \033[2m──────────────────────────────────────────────────────────────\033[0m"
         echo ""
         echo -ne "  Enter choice: "
         read -r choice
